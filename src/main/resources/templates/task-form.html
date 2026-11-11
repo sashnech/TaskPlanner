@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Задача</title>
+</head>
+<body>
+
+<h1 th:text="${pageTitle}"></h1>
+
+<form th:action="@{/tasks/save}"
+      th:object="${task}"
+      method="post">
+
+    <input type="hidden" th:field="*{id}">
+    <input type="hidden" th:field="*{completed}">
+
+    <p>
+        <label>Назва задачі:</label>
+        <input type="text" th:field="*{title}" required>
+    </p>
+
+    <p>
+        <label>Дата виконання:</label>
+        <input type="date" th:field="*{dueDate}" required>
+    </p>
+
+    <p>
+        <label>Пріоритет:</label>
+
+        <select th:field="*{priority}">
+            <option th:each="priority : ${priorities}"
+                    th:value="${priority}"
+                    th:text="${priority.label}">
+            </option>
+        </select>
+    </p>
+
+    <button type="submit">Зберегти</button>
+
+</form>
+
+<p>
+    <a th:href="@{/tasks}">Повернутися до списку</a>
+</p>
+
+</body>
+</html>

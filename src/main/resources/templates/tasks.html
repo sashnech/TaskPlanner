@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="uk" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Планувальник задач</title>
+</head>
+<body>
+
+<h1>Планувальник задач</h1>
+
+<a th:href="@{/tasks/new}">Створити задачу</a>
+
+<h3>Сортування</h3>
+
+<form th:action="@{/tasks}" method="get">
+    <select name="sort">
+        <option value="date"
+                th:selected="${sort == 'date'}">
+            За датою
+        </option>
+
+        <option value="priority"
+                th:selected="${sort == 'priority'}">
+            За пріоритетом
+        </option>
+    </select>
+
+    <button type="submit">Сортувати</button>
+</form>
+
+<h3>Список задач</h3>
+
+<p th:if="${#lists.isEmpty(tasks)}">
+    Задач поки немає.
+</p>
+
+<table border="1" cellpadding="8"
+       th:unless="${#lists.isEmpty(tasks)}">
+
+    <tr>
+        <th>ID</th>
+        <th>Назва</th>
+        <th>Дата</th>
+        <th>Пріоритет</th>
+        <th>Статус</th>
+        <th>Дії</th>
+    </tr>
+
+    <tr th:each="task : ${tasks}">
+        <td th:text="${task.id}"></td>
+        <td th:text="${task.title}"></td>
+        <td th:text="${task.dueDate}"></td>
+        <td th:text="${task.priority.label}"></td>
+
+        <td>
+            <span th:if="${task.completed}">Виконана</span>
+            <span th:unless="${task.completed}">Активна</span>
+        </td>
+
+        <td>
+            <a th:href="@{/tasks/edit/{id}(id=${task.id})}">
+                Редагувати
+            </a>
+
+            <form th:if="${!task.completed}"
+                  th:action="@{/tasks/complete/{id}(id=${task.id})}"
+                  method="post"
+                  style="display:inline;">
+
+                <button type="submit">Виконано</button>
+            </form>
+
+            <form th:action="@{/tasks/delete/{id}(id=${task.id})}"
+                  method="post"
+                  style="display:inline;">
+
+                <button type="submit">Видалити</button>
+            </form>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
