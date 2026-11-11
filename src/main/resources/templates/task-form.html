@@ -1,49 +1,80 @@
-
 <!DOCTYPE html>
 <html lang="uk" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Задача</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактор задач</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
 
-<h1 th:text="${pageTitle}"></h1>
+<main class="container">
 
-<form th:action="@{/tasks/save}"
-      th:object="${task}"
-      method="post">
+    <header class="page-header">
+        <div>
+            <h1 th:text="${pageTitle}">Задача</h1>
+        </div>
+    </header>
 
-    <input type="hidden" th:field="*{id}">
-    <input type="hidden" th:field="*{completed}">
+    <section class="panel form-panel">
 
-    <p>
-        <label>Назва задачі:</label>
-        <input type="text" th:field="*{title}" required>
-    </p>
+        <form th:action="@{/tasks/save}"
+              th:object="${task}"
+              method="post">
 
-    <p>
-        <label>Дата виконання:</label>
-        <input type="date" th:field="*{dueDate}" required>
-    </p>
+            <input type="hidden" th:field="*{id}">
+            <input type="hidden" th:field="*{completed}">
 
-    <p>
-        <label>Пріоритет:</label>
+            <div class="form-group">
+                <label for="title">Назва задачі</label>
 
-        <select th:field="*{priority}">
-            <option th:each="priority : ${priorities}"
-                    th:value="${priority}"
-                    th:text="${priority.label}">
-            </option>
-        </select>
-    </p>
+                <input type="text"
+                       id="title"
+                       th:field="*{title}"
+                       placeholder="Введіть назву задачі"
+                       maxlength="120"
+                       required>
+            </div>
 
-    <button type="submit">Зберегти</button>
+            <div class="form-group">
+                <label for="dueDate">Дата виконання</label>
 
-</form>
+                <input type="date"
+                       id="dueDate"
+                       th:field="*{dueDate}"
+                       required>
+            </div>
 
-<p>
-    <a th:href="@{/tasks}">Повернутися до списку</a>
-</p>
+            <div class="form-group">
+                <label for="priority">Пріоритет</label>
+
+                <select id="priority"
+                        th:field="*{priority}"
+                        required>
+
+                    <option th:each="priority : ${priorities}"
+                            th:value="${priority}"
+                            th:text="${priority.label}">
+                    </option>
+
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button class="button primary" type="submit">
+                    Зберегти
+                </button>
+
+                <a class="button secondary" th:href="@{/tasks}">
+                    Скасувати
+                </a>
+            </div>
+
+        </form>
+
+    </section>
+
+</main>
 
 </body>
 </html>
