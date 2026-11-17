@@ -13,17 +13,14 @@ public record PageResponse<T>(
         boolean last
 ) {
 
-    public static <T> PageResponse<T> of(List<T> all, int page, int size) {
-        int total = all.size();
-        int totalPages = (int) Math.ceil((double) total / size);
-        int from = (int) Math.min((long) page * size, total);
-        int to = Math.min(from + size, total);
+    public static <T> PageResponse<T> of(List<T> content, int page, int size, long totalElements) {
+        int totalPages = (int) Math.ceil((double) totalElements / size);
 
         return new PageResponse<>(
-                List.copyOf(all.subList(from, to)),
+                List.copyOf(content),
                 page,
                 size,
-                total,
+                totalElements,
                 totalPages,
                 page == 0,
                 page >= totalPages - 1

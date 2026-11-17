@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 
-@RestControllerAdvice(assignableTypes = TaskRestController.class)
+@RestControllerAdvice(assignableTypes = {TaskRestController.class, HistoryRestController.class})
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override

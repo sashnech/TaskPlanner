@@ -1,10 +1,12 @@
 package com.example.taskplanner.controller.api;
 
+import com.example.taskplanner.dto.BulkCompleteRequest;
 import com.example.taskplanner.dto.PageResponse;
 import com.example.taskplanner.dto.TaskFilter;
 import com.example.taskplanner.dto.TaskRequest;
 import com.example.taskplanner.model.Priority;
 import com.example.taskplanner.model.Task;
+import com.example.taskplanner.model.TaskHistory;
 import com.example.taskplanner.patch.JsonMergePatch;
 import com.example.taskplanner.patch.JsonPatch;
 import com.example.taskplanner.patch.JsonPatchOperation;
@@ -103,5 +105,18 @@ public class TaskRestController {
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.noContent().build();
+    }
+
+
+
+    @PostMapping("/complete")
+    public List<Task> completeTasks(@Valid @RequestBody BulkCompleteRequest request) {
+        return taskService.completeTasks(request.ids());
+    }
+
+
+    @GetMapping("/{id}/history")
+    public List<TaskHistory> getTaskHistory(@PathVariable Long id) {
+        return taskService.getTaskHistory(id);
     }
 }
