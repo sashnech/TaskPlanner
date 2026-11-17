@@ -1,7 +1,9 @@
 package com.example.taskplanner.dto;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
 
+import java.util.List;
+import java.util.function.Function;
 
 public record PageResponse<T>(
         List<T> content,
@@ -13,17 +15,15 @@ public record PageResponse<T>(
         boolean last
 ) {
 
-    public static <T> PageResponse<T> of(List<T> content, int page, int size, long totalElements) {
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-
+    public static <E, T> PageResponse<T> from(Page<E> page, Function<E, T> mapper) {
         return new PageResponse<>(
-                List.copyOf(content),
-                page,
-                size,
-                totalElements,
-                totalPages,
-                page == 0,
-                page >= totalPages - 1
+                page.getContent().stream().map(mapper).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
         );
     }
 }

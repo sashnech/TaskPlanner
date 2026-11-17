@@ -3,10 +3,10 @@ package com.example.taskplanner.controller.api;
 import com.example.taskplanner.dto.BulkCompleteRequest;
 import com.example.taskplanner.dto.PageResponse;
 import com.example.taskplanner.dto.TaskFilter;
+import com.example.taskplanner.dto.TaskHistoryResponse;
 import com.example.taskplanner.dto.TaskRequest;
+import com.example.taskplanner.dto.TaskResponse;
 import com.example.taskplanner.model.Priority;
-import com.example.taskplanner.model.Task;
-import com.example.taskplanner.model.TaskHistory;
 import com.example.taskplanner.patch.JsonMergePatch;
 import com.example.taskplanner.patch.JsonPatch;
 import com.example.taskplanner.patch.JsonPatchOperation;
@@ -26,7 +26,6 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskRestController {
@@ -40,9 +39,8 @@ public class TaskRestController {
         this.taskService = taskService;
     }
 
-
     @GetMapping
-    public PageResponse<Task> listTasks(
+    public PageResponse<TaskResponse> listTasks(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Priority priority,
             @RequestParam(required = false) Boolean completed,
@@ -63,43 +61,53 @@ public class TaskRestController {
         return taskService.findTasks(filter, sort, page, size);
     }
 
+    @GetMapping("/overdue")
+    public List<TaskResponse> getOverdueTasks(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
-    @GetMapping("/{id}")
-    public Task getTask(@PathVariable Long id) {
-        return taskService.getTask(id);
+        return taskService.getOverdueTasks(date);
     }
 
+    @GetMapping("/upcoming")
+    public List<TaskResponse> getUpcomingTasks(
+            @RequestParam(defaultValue = "7")
+            @Min(value = 0, message = "Кількість днів не може бути від'ємною")
+            @Max(value = 365, message = "Кількість днів має бути не більше 365") int days) {
+
+        return taskService.getUpcomingTasks(days);
+    }
+
+    @GetMapping("/{id}")
+    public TaskResponse getTask(@PathVariable Long id) {
+        return TaskResponse.from(taskService.getTask(id));
+    }
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@Valid @RequestBody TaskRequest request) {
-        Task created = taskService.createTask(request);
+    public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskRequest request) {
+        TaskResponse created = TaskResponse.from(taskService.createTask(request));
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(created.getId())
+                .buildAndExpand(created.id())
                 .toUri();
 
         return ResponseEntity.created(location).body(created);
     }
 
-
     @PutMapping("/{id}")
-    public Task replaceTask(@PathVariable Long id, @Valid @RequestBody TaskRequest request) {
-        return taskService.updateTask(id, request);
+    public TaskResponse replaceTask(@PathVariable Long id, @Valid @RequestBody TaskRequest request) {
+        return TaskResponse.from(taskService.updateTask(id, request));
     }
-
 
     @PatchMapping(path = "/{id}", consumes = JSON_PATCH)
-    public Task jsonPatchTask(@PathVariable Long id, @RequestBody List<JsonPatchOperation> patch) {
-        return taskService.patchTask(id, current -> JsonPatch.apply(patch, current));
+    public TaskResponse jsonPatchTask(@PathVariable Long id, @RequestBody List<JsonPatchOperation> patch) {
+        return TaskResponse.from(taskService.patchTask(id, current -> JsonPatch.apply(patch, current)));
     }
-
 
     @PatchMapping(path = "/{id}", consumes = MERGE_PATCH)
-    public Task mergePatchTask(@PathVariable Long id, @RequestBody JsonNode patch) {
-        return taskService.patchTask(id, current -> JsonMergePatch.apply(patch, current));
+    public TaskResponse mergePatchTask(@PathVariable Long id, @RequestBody JsonNode patch) {
+        return TaskResponse.from(taskService.patchTask(id, current -> JsonMergePatch.apply(patch, current)));
     }
-
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
@@ -107,16 +115,13 @@ public class TaskRestController {
         return ResponseEntity.noContent().build();
     }
 
-
-
     @PostMapping("/complete")
-    public List<Task> completeTasks(@Valid @RequestBody BulkCompleteRequest request) {
+    public List<TaskResponse> completeTasks(@Valid @RequestBody BulkCompleteRequest request) {
         return taskService.completeTasks(request.ids());
     }
 
-
     @GetMapping("/{id}/history")
-    public List<TaskHistory> getTaskHistory(@PathVariable Long id) {
+    public List<TaskHistoryResponse> getTaskHistory(@PathVariable Long id) {
         return taskService.getTaskHistory(id);
     }
 }

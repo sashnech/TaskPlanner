@@ -2,21 +2,26 @@ package com.example.taskplanner.service;
 
 import com.example.taskplanner.dto.PageResponse;
 import com.example.taskplanner.dto.TaskFilter;
+import com.example.taskplanner.dto.TaskHistoryResponse;
 import com.example.taskplanner.dto.TaskRequest;
+import com.example.taskplanner.dto.TaskResponse;
 import com.example.taskplanner.model.HistoryAction;
 import com.example.taskplanner.model.Task;
-import com.example.taskplanner.model.TaskHistory;
 import tools.jackson.databind.JsonNode;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.function.UnaryOperator;
-
 
 public interface TaskService {
 
     List<Task> getAllTasks(String sortBy);
 
-    PageResponse<Task> findTasks(TaskFilter filter, String sortBy, int page, int size);
+    PageResponse<TaskResponse> findTasks(TaskFilter filter, String sortBy, int page, int size);
+
+    List<TaskResponse> getOverdueTasks(LocalDate date);
+
+    List<TaskResponse> getUpcomingTasks(int days);
 
     Task getTask(Long id);
 
@@ -32,10 +37,9 @@ public interface TaskService {
 
     void completeTask(Long id);
 
+    List<TaskResponse> completeTasks(List<Long> ids);
 
-    List<Task> completeTasks(List<Long> ids);
+    List<TaskHistoryResponse> getTaskHistory(Long taskId);
 
-    List<TaskHistory> getTaskHistory(Long taskId);
-
-    List<TaskHistory> getHistory(HistoryAction action);
+    List<TaskHistoryResponse> getHistory(HistoryAction action);
 }

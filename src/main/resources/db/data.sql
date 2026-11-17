@@ -11,7 +11,9 @@ INSERT INTO tasks (title, due_date, priority, completed) VALUES
     ('Підготуватися до контрольної',     '2026-11-27', 'HIGH',   FALSE),
     ('Полагодити велосипед',             '2026-12-02', 'LOW',    FALSE),
     ('Написати курсову: розділ 1',       '2026-12-05', 'HIGH',   FALSE),
-    ('Привітати друга з днем народження','2026-11-30', 'MEDIUM', TRUE);
+    ('Привітати друга з днем народження','2026-11-30', 'MEDIUM', TRUE),
+    ('Здати книги в бібліотеку',         '2026-11-10', 'MEDIUM', FALSE),
+    ('Оновити резюме',                   '2026-11-12', 'LOW',    FALSE);
 
 INSERT INTO task_history (task_id, action, details)
 SELECT id, 'CREATED', CONCAT('Створено задачу: ', title) FROM tasks;

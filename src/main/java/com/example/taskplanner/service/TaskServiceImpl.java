@@ -2,10 +2,11 @@ package com.example.taskplanner.service;
 
 import com.example.taskplanner.dto.PageResponse;
 import com.example.taskplanner.dto.TaskFilter;
+import com.example.taskplanner.dto.TaskHistoryResponse;
 import com.example.taskplanner.dto.TaskRequest;
+import com.example.taskplanner.dto.TaskResponse;
 import com.example.taskplanner.model.HistoryAction;
 import com.example.taskplanner.model.Task;
-import com.example.taskplanner.model.TaskHistory;
 import com.example.taskplanner.patch.PatchException;
 import com.example.taskplanner.repository.TaskHistoryRepository;
 import com.example.taskplanner.repository.TaskRepository;
@@ -14,6 +15,9 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +27,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -30,10 +35,15 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
-
 @Service
 @Transactional(readOnly = true)
 public class TaskServiceImpl implements TaskService {
+
+    private static final Sort SORT_BY_DATE = Sort.by(
+            Sort.Order.asc("dueDate"), Sort.Order.asc("id"));
+
+    private static final Sort SORT_BY_PRIORITY = Sort.by(
+            Sort.Order.desc("priority"), Sort.Order.asc("dueDate"), Sort.Order.asc("id"));
 
     private final TaskRepository taskRepository;
     private final TaskHistoryRepository historyRepository;
@@ -62,24 +72,50 @@ public class TaskServiceImpl implements TaskService {
         this.taskSorter = taskSorter;
     }
 
-
     @Override
     public List<Task> getAllTasks(String sortBy) {
-        return taskSorter.sort(taskRepository.findAll(), sortBy);
+        return taskSorter.sort(new ArrayList<>(taskRepository.findAllByOrderByIdAsc()), sortBy);
     }
 
     @Override
-    public PageResponse<Task> findTasks(TaskFilter filter, String sortBy, int page, int size) {
+    public PageResponse<TaskResponse> findTasks(TaskFilter filter, String sortBy, int page, int size) {
         if (filter.dueFrom() != null && filter.dueTo() != null
                 && filter.dueFrom().isAfter(filter.dueTo())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Параметр dueFrom не може бути пізніше за dueTo");
         }
 
-        long total = taskRepository.countByFilter(filter);
-        List<Task> content = taskRepository.findByFilter(filter, sortBy, size, (long) page * size);
+        Sort sort = "priority".equals(sortBy) ? SORT_BY_PRIORITY : SORT_BY_DATE;
+        String title = filter.title() == null || filter.title().isBlank() ? null : filter.title().trim();
 
-        return PageResponse.of(content, page, size, total);
+        Page<Task> result = taskRepository.search(
+                title,
+                filter.priority(),
+                filter.completed(),
+                filter.dueFrom(),
+                filter.dueTo(),
+                PageRequest.of(page, size, sort));
+
+        return PageResponse.from(result, TaskResponse::from);
+    }
+
+    @Override
+    public List<TaskResponse> getOverdueTasks(LocalDate date) {
+        LocalDate reference = date == null ? LocalDate.now() : date;
+
+        return taskRepository.findOverdue(reference).stream()
+                .map(TaskResponse::from)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponse> getUpcomingTasks(int days) {
+        LocalDate today = LocalDate.now();
+
+        return taskRepository.findByCompletedFalseAndDueDateBetweenOrderByDueDateAscIdAsc(
+                        today, today.plusDays(days)).stream()
+                .map(TaskResponse::from)
+                .toList();
     }
 
     @Override
@@ -89,26 +125,36 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<TaskHistory> getTaskHistory(Long taskId) {
+    public List<TaskHistoryResponse> getTaskHistory(Long taskId) {
         getTask(taskId);
-        return historyRepository.findByTaskId(taskId);
+
+        return historyRepository.findByTaskIdOrderByCreatedAtAscIdAsc(taskId).stream()
+                .map(TaskHistoryResponse::from)
+                .toList();
     }
 
     @Override
-    public List<TaskHistory> getHistory(HistoryAction action) {
-        return action == null
-                ? historyRepository.findAll()
-                : historyRepository.findByAction(action);
-    }
+    public List<TaskHistoryResponse> getHistory(HistoryAction action) {
+        var history = action == null
+                ? historyRepository.findAllWithTask()
+                : historyRepository.findByActionOrderByCreatedAtAscIdAsc(action);
 
+        return history.stream()
+                .map(TaskHistoryResponse::from)
+                .toList();
+    }
 
     @Override
     @Transactional
-    public void saveTask(Task task) {
-        if (task.getId() == null) {
+    public void saveTask(Task form) {
+        if (form.getId() == null) {
+            Task task = new Task();
+            copyFields(form, task);
             insert(task);
         } else {
-            update(task);
+            Task task = getTask(form.getId());
+            copyFields(form, task);
+            registerUpdate(task);
         }
     }
 
@@ -126,7 +172,7 @@ public class TaskServiceImpl implements TaskService {
     public Task updateTask(Long id, TaskRequest request) {
         Task task = getTask(id);
         request.applyTo(task);
-        update(task);
+        registerUpdate(task);
         return task;
     }
 
@@ -161,17 +207,14 @@ public class TaskServiceImpl implements TaskService {
         }
 
         request.applyTo(task);
-        update(task);
+        registerUpdate(task);
         return task;
     }
 
     @Override
     @Transactional
     public void deleteTask(Long id) {
-        if (!taskRepository.deleteById(id)) {
-            throw notFound(id);
-        }
-
+        taskRepository.delete(getTask(id));
         operations.getObject().log("Видалено задачу №" + id);
     }
 
@@ -187,8 +230,8 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
-    public List<Task> completeTasks(List<Long> ids) {
-        List<Task> completed = new ArrayList<>();
+    public List<TaskResponse> completeTasks(List<Long> ids) {
+        List<TaskResponse> completed = new ArrayList<>();
 
         for (Long id : new LinkedHashSet<>(ids)) {
             Task task = getTask(id);
@@ -199,41 +242,38 @@ public class TaskServiceImpl implements TaskService {
             }
 
             markCompleted(task);
-            completed.add(task);
+            completed.add(TaskResponse.from(task));
         }
 
         operations.getObject().log("Масово виконано задачі " + ids);
         return completed;
     }
 
-
     private void insert(Task task) {
-        Long id = taskRepository.create(task);
-        historyRepository.create(TaskHistory.of(id, HistoryAction.CREATED,
-                "Створено задачу: " + task.getTitle()));
-
-        operations.getObject().log("Створено задачу №" + id);
+        task.addHistory(HistoryAction.CREATED, "Створено задачу: " + task.getTitle());
+        taskRepository.save(task);
+        operations.getObject().log("Створено задачу №" + task.getId());
     }
 
-    private void update(Task task) {
-        if (!taskRepository.update(task)) {
-            throw notFound(task.getId());
-        }
-
-        historyRepository.create(TaskHistory.of(task.getId(), HistoryAction.UPDATED,
+    private void registerUpdate(Task task) {
+        task.addHistory(HistoryAction.UPDATED,
                 "Оновлено: " + task.getTitle() + ", " + task.getDueDate()
-                        + ", " + task.getPriority() + ", виконана: " + task.isCompleted()));
+                        + ", " + task.getPriority() + ", виконана: " + task.isCompleted());
 
         operations.getObject().log("Оновлено задачу №" + task.getId());
     }
 
     private void markCompleted(Task task) {
         task.setCompleted(true);
-        taskRepository.update(task);
-        historyRepository.create(TaskHistory.of(task.getId(), HistoryAction.COMPLETED,
-                "Задачу позначено як виконану"));
-
+        task.addHistory(HistoryAction.COMPLETED, "Задачу позначено як виконану");
         operations.getObject().log("Виконано задачу №" + task.getId());
+    }
+
+    private static void copyFields(Task source, Task target) {
+        target.setTitle(source.getTitle() == null ? null : source.getTitle().trim());
+        target.setDueDate(source.getDueDate());
+        target.setPriority(source.getPriority());
+        target.setCompleted(source.isCompleted());
     }
 
     private static ResponseStatusException notFound(Long id) {

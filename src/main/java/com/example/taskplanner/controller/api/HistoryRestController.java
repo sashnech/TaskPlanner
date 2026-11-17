@@ -1,7 +1,7 @@
 package com.example.taskplanner.controller.api;
 
+import com.example.taskplanner.dto.TaskHistoryResponse;
 import com.example.taskplanner.model.HistoryAction;
-import com.example.taskplanner.model.TaskHistory;
 import com.example.taskplanner.service.TaskService;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-
 
 @RestController
 @RequestMapping("/api/history")
@@ -23,7 +22,7 @@ public class HistoryRestController {
     }
 
     @GetMapping
-    public List<TaskHistory> getHistory(@RequestParam(required = false) HistoryAction action) {
+    public List<TaskHistoryResponse> getHistory(@RequestParam(required = false) HistoryAction action) {
         return taskService.getHistory(action);
     }
 }
